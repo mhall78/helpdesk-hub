@@ -1,0 +1,14 @@
+# Render Blueprint: in Render, New > Blueprint, then pick this repo.
+services:
+  - type: web
+    name: helpdesk-hub
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SESSION_COOKIE_SECURE
+        value: "1"
+      - key: SEED_DEMO
+        value: "1"

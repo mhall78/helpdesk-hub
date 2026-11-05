@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}My tickets{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>My tickets</h1>
+    <p class="muted">Track your requests and reply to the help desk.</p>
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h2>Your requests</h2>
+    <div id="ticket-list" class="table-wrap"><p class="empty">Loading…</p></div>
+  </div>
+
+  <div class="card">
+    <h2>Submit a ticket</h2>
+    <p class="hint">Common fix? Try the <a href="/kb">help articles</a> first.</p>
+    <form id="new-ticket" novalidate>
+      <label for="title">Title</label>
+      <input id="title" name="title" maxlength="120" placeholder="e.g. Locked out of my student account" required>
+      <div class="field-error" data-error-for="title"></div>
+      <div class="row">
+        <div>
+          <label for="category">Category</label>
+          <select id="category" name="category">
+            <option value="account">Account</option>
+            <option value="wifi">Wi-Fi</option>
+            <option value="software">Software</option>
+            <option value="hardware">Hardware</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label for="priority">Priority</label>
+          <select id="priority" name="priority">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+      </div>
+      <label for="description">What's going on?</label>
+      <textarea id="description" name="description" placeholder="What happened, any error message, and what you already tried." required></textarea>
+      <div class="field-error" data-error-for="description"></div>
+      <div class="form-error" role="alert"></div>
+      <button class="btn btn-primary" type="submit">Submit ticket</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  async function loadTickets() {
+    const box = document.getElementById("ticket-list");
+    const { tickets } = await api("GET", "/api/tickets");
+    if (!tickets.length) {
+      box.innerHTML = '<p class="empty">No tickets yet. Submit one when you need help.</p>';
+      return;
+    }
+    box.innerHTML = `<table>
+      <thead><tr><th>Ticket</th><th>Status</th><th>Category</th><th>Updated</th></tr></thead>
+      <tbody>${tickets.map((t) => `<tr>
+        <td><a href="/tickets/${t.id}">#${t.id} ${esc(t.title)}</a></td>
+        <td>${badge("status", t.status)}</td>
+        <td>${esc(LABELS.category[t.category])}</td>
+        <td class="muted">${ago(t.updated_at)}</td>
+      </tr>`).join("")}</tbody></table>`;
+  }
+
+  const form = document.getElementById("new-ticket");
+  handleSubmit(form, async (data) => {
+    const { ticket } = await api("POST", "/api/tickets", data);
+    window.location = `/tickets/${ticket.id}`;
+  });
+
+  loadTickets();
+</script>
+{% endblock %}

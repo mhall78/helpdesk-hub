@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Create account{% endblock %}
+{% block content %}
+<div class="narrow">
+  <div class="card">
+    <h1>Create an account</h1>
+    <p class="muted">Use your school email so your tickets are tied to you.</p>
+    <form id="register-form" novalidate>
+      <label for="name">Full name</label>
+      <input id="name" name="name" autocomplete="name" required>
+      <div class="field-error" data-error-for="name"></div>
+      <label for="email">School email</label>
+      <input id="email" name="email" type="email" autocomplete="email" required>
+      <div class="field-error" data-error-for="email"></div>
+      <label for="password">Password (8+ characters)</label>
+      <input id="password" name="password" type="password" autocomplete="new-password" required>
+      <div class="field-error" data-error-for="password"></div>
+      <div class="form-error" role="alert"></div>
+      <button class="btn btn-primary" type="submit">Create account</button>
+    </form>
+    <p class="small muted">Already have one? <a href="/login">Log in</a></p>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  handleSubmit(document.getElementById("register-form"), async (data) => {
+    await api("POST", "/api/auth/register", data);
+    window.location = "/tickets";
+  });
+</script>
+{% endblock %}

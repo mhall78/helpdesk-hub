@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Log in{% endblock %}
+{% block content %}
+<div class="narrow">
+  <div class="card">
+    <h1>Log in</h1>
+    <p class="muted">Get help with accounts, Wi-Fi, software and more.</p>
+    <form id="login-form" novalidate>
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" autocomplete="email" required>
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+      <div class="form-error" role="alert"></div>
+      <button class="btn btn-primary" type="submit">Log in</button>
+    </form>
+    <p class="small muted">New here? <a href="/register">Create an account</a></p>
+    {% if config.SEED_DEMO %}
+    <div class="demo">
+      <strong>Demo accounts</strong> (password <code>{{ config.DEMO_PASSWORD }}</code>):<br>
+      <code>student@demo.edu</code> · <code>staff@demo.edu</code> · <code>admin@demo.edu</code>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  handleSubmit(document.getElementById("login-form"), async (data) => {
+    await api("POST", "/api/auth/login", data);
+    window.location = "/";
+  });
+</script>
+{% endblock %}

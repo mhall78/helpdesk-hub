@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}HelpDesk Hub{% endblock %} · HelpDesk Hub</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23a3122a'/><text x='16' y='23' font-size='20' text-anchor='middle' fill='white' font-family='sans-serif'>?</text></svg>">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="/"><span class="brand-mark">?</span> HelpDesk Hub</a>
+      <nav class="nav">
+        {% if user and not is_staff %}<a href="/tickets" class="{{ 'active' if request.path.startswith('/tickets') }}">My tickets</a>{% endif %}
+        {% if is_staff %}<a href="/queue" class="{{ 'active' if request.path == '/queue' }}">Ticket queue</a>{% endif %}
+        <a href="/kb" class="{{ 'active' if request.path == '/kb' }}">Help articles</a>
+        {% if user and user.role == 'admin' %}<a href="/admin" class="{{ 'active' if request.path == '/admin' }}">Dashboard</a>{% endif %}
+      </nav>
+      <div class="whoami">
+        {% if user %}
+          <span>{{ user.name }}</span><span class="role-pill">{{ user.role }}</span>
+          <button class="btn btn-ghost btn-small" onclick="logout()">Log out</button>
+        {% else %}
+          <a class="btn btn-ghost btn-small" href="/login">Log in</a>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+  <main>{% block content %}{% endblock %}</main>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

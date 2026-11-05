@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ error.code }}{% endblock %}
+{% block content %}
+<div class="narrow card">
+  <h1>{{ "Page not found" if error.code == 404 else "Not allowed" }}</h1>
+  <p class="muted">{{ "That page doesn't exist." if error.code == 404 else "Your account doesn't have access to that page." }}</p>
+  <a class="btn btn-ghost" href="/">Go home</a>
+</div>
+{% endblock %}

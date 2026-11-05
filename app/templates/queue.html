@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Ticket queue{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Ticket queue</h1>
+    <p class="muted">Urgent and oldest tickets are on top. Claim one so nobody doubles up.</p>
+  </div>
+</div>
+
+<div class="card">
+  <form class="filters" id="filters" onsubmit="return false">
+    <input name="q" type="search" placeholder="Search tickets" aria-label="Search tickets">
+    <select name="status">
+      <option value="">Active tickets</option>
+      <option value="open">Open</option>
+      <option value="in_progress">In progress</option>
+      <option value="resolved">Resolved</option>
+      <option value="closed">Closed</option>
+      <option value="all">All statuses</option>
+    </select>
+    <select name="category">
+      <option value="">All categories</option>
+      <option value="account">Account</option>
+      <option value="wifi">Wi-Fi</option>
+      <option value="software">Software</option>
+      <option value="hardware">Hardware</option>
+      <option value="other">Other</option>
+    </select>
+    <select name="priority">
+      <option value="">All priorities</option>
+      <option value="high">High</option>
+      <option value="medium">Medium</option>
+      <option value="low">Low</option>
+    </select>
+    <select name="assigned">
+      <option value="">Anyone</option>
+      <option value="me">Assigned to me</option>
+      <option value="none">Unassigned</option>
+    </select>
+  </form>
+  <div id="queue" class="table-wrap"><p class="empty">Loading…</p></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const filters = document.getElementById("filters");
+
+  async function loadQueue() {
+    const params = new URLSearchParams();
+    for (const el of filters.elements) {
+      if (el.value && el.value !== "all") params.set(el.name, el.value);
+    }
+    let { tickets } = await api("GET", `/api/tickets?${params}`);
+    if (!filters.elements.status.value) {
+      tickets = tickets.filter((t) => t.status === "open" || t.status === "in_progress");
+    }
+    const box = document.getElementById("queue");
+    if (!tickets.length) {
+      box.innerHTML = '<p class="empty">No tickets match. Nice work.</p>';
+      return;
+    }
+    box.innerHTML = `<table>
+      <thead><tr><th>Priority</th><th>Ticket</th><th>Requester</th><th>Status</th><th>Assignee</th><th>Age</th><th></th></tr></thead>
+      <tbody>${tickets.map((t) => `<tr>
+        <td>${badge("priority", t.priority)}</td>
+        <td><a href="/tickets/${t.id}">#${t.id} ${esc(t.title)}</a><div class="small muted">${esc(LABELS.category[t.category])}</div></td>
+        <td>${esc(t.requester_name)}</td>
+        <td>${badge("status", t.status)}</td>
+        <td>${t.assignee_name ? esc(t.assignee_name) : '<span class="muted">—</span>'}</td>
+        <td class="muted">${ago(t.created_at)}</td>
+        <td>${t.assigned_to ? "" : `<button class="btn btn-ghost btn-small" data-claim="${t.id}">Claim</button>`}</td>
+      </tr>`).join("")}</tbody></table>`;
+  }
+
+  document.getElementById("queue").addEventListener("click", async (event) => {
+    const id = event.target.dataset.claim;
+    if (!id) return;
+    event.target.disabled = true;
+    await api("PATCH", `/api/tickets/${id}`, { assigned_to: "me" });
+    loadQueue();
+  });
+
+  let timer;
+  filters.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(loadQueue, 250); });
+  loadQueue();
+</script>
+{% endblock %}

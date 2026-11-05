@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}Ticket #{{ ticket_id }}{% endblock %}
+{% block content %}
+<p class="small"><a href="{{ '/queue' if is_staff else '/tickets' }}">← Back to {{ 'queue' if is_staff else 'my tickets' }}</a></p>
+
+<div class="grid-2">
+  <div>
+    <div class="card" id="ticket-card"><p class="empty">Loading…</p></div>
+
+    <div class="card">
+      <h2>Conversation</h2>
+      <div id="thread" class="thread"></div>
+      <form id="reply-form" novalidate>
+        <label for="body">Reply</label>
+        <textarea id="body" name="body" placeholder="Add details or answer a question from the help desk."></textarea>
+        <div class="form-error" role="alert"></div>
+        <button class="btn btn-primary" type="submit">Send reply</button>
+      </form>
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <h2>Details</h2>
+      <dl class="facts" id="facts"></dl>
+    </div>
+
+    {% if is_staff %}
+    <div class="card">
+      <h2>Staff actions</h2>
+      <button class="btn btn-ghost btn-small" id="claim-btn" type="button"></button>
+      <form id="staff-form" novalidate>
+        <label for="status">Status</label>
+        <select id="status" name="status">
+          <option value="open">Open</option>
+          <option value="in_progress">In progress</option>
+          <option value="resolved">Resolved</option>
+          <option value="closed">Closed</option>
+        </select>
+        <label for="priority">Priority</label>
+        <select id="priority" name="priority">
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+        </select>
+        <label for="note">Note to student (optional)</label>
+        <textarea id="note" name="note" placeholder="e.g. Your account is unlocked. Set a new password at…"></textarea>
+        <div class="form-error" role="alert"></div>
+        <button class="btn btn-primary" type="submit">Save changes</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const TICKET_ID = {{ ticket_id }};
+  const ME = {{ user | tojson }};
+
+  function renderComment(c) {
+    const staff = c.author_role !== "student";
+    return `<div class="comment ${staff ? "staff" : ""}">
+      <div class="comment-head"><strong>${esc(c.author_name)}${staff ? " · Help desk" : ""}</strong>
+      <span class="muted">${when(c.created_at)}</span></div>
+      <div class="comment-body">${esc(c.body)}</div></div>`;
+  }
+
+  async function load() {
+    let ticket;
+    try {
+      ({ ticket } = await api("GET", `/api/tickets/${TICKET_ID}`));
+    } catch (err) {
+      document.getElementById("ticket-card").innerHTML = `<p class="empty">${esc(err.message)}</p>`;
+      return;
+    }
+    document.getElementById("ticket-card").innerHTML = `
+      <h1>#${ticket.id} ${esc(ticket.title)}</h1>
+      <div class="meta">${badge("status", ticket.status)} ${badge("priority", ticket.priority)}
+        <span class="badge">${esc(LABELS.category[ticket.category])}</span></div>
+      <div class="description">${esc(ticket.description)}</div>`;
+
+    document.getElementById("facts").innerHTML = `
+      <dt>Requester</dt><dd>${esc(ticket.requester_name)}</dd>
+      <dt>Assigned to</dt><dd>${ticket.assignee_name ? esc(ticket.assignee_name) : '<span class="muted">Not yet</span>'}</dd>
+      <dt>Submitted</dt><dd>${when(ticket.created_at)}</dd>
+      <dt>Updated</dt><dd>${when(ticket.updated_at)}</dd>
+      ${ticket.resolved_at ? `<dt>Resolved</dt><dd>${when(ticket.resolved_at)}</dd>` : ""}`;
+
+    document.getElementById("thread").innerHTML = ticket.comments.length
+      ? ticket.comments.map(renderComment).join("")
+      : '<p class="muted small">No replies yet.</p>';
+
+    const staffForm = document.getElementById("staff-form");
+    if (staffForm) {
+      staffForm.elements.status.value = ticket.status;
+      staffForm.elements.priority.value = ticket.priority;
+      const claim = document.getElementById("claim-btn");
+      const mine = ticket.assigned_to === ME.id;
+      claim.textContent = mine ? "Unassign me" : "Claim this ticket";
+      claim.onclick = async () => {
+        await api("PATCH", `/api/tickets/${TICKET_ID}`, { assigned_to: mine ? null : "me" });
+        load();
+      };
+    }
+  }
+
+  handleSubmit(document.getElementById("reply-form"), async (data) => {
+    await api("POST", `/api/tickets/${TICKET_ID}/comments`, data);
+    document.getElementById("reply-form").reset();
+    load();
+  });
+
+  const staffForm = document.getElementById("staff-form");
+  if (staffForm) {
+    handleSubmit(staffForm, async (data) => {
+      await api("PATCH", `/api/tickets/${TICKET_ID}`, data);
+      staffForm.elements.note.value = "";
+      load();
+    });
+  }
+
+  load();
+</script>
+{% endblock %}

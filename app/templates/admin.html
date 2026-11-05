@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Dashboard</h1>
+    <p class="muted">How support is going, and which problems keep coming up.</p>
+  </div>
+</div>
+<div class="tiles" id="tiles"></div>
+<div class="card">
+  <h2>Tickets by category</h2>
+  <div id="categories"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  async function loadStats() {
+    const s = await api("GET", "/api/admin/stats");
+    const tiles = [
+      ["Total tickets", s.total],
+      ["Open", s.by_status.open],
+      ["In progress", s.by_status.in_progress],
+      ["Unassigned (active)", s.unassigned_open],
+      ["Resolved + closed", s.resolved_count],
+      ["Avg. time to resolve", s.avg_resolution_hours === null ? "—" : `${s.avg_resolution_hours} h`],
+    ];
+    document.getElementById("tiles").innerHTML = tiles
+      .map(([label, n]) => `<div class="tile"><div class="small muted">${label}</div><div class="num">${esc(n)}</div></div>`)
+      .join("");
+
+    const max = Math.max(1, ...Object.values(s.by_category));
+    document.getElementById("categories").innerHTML = Object.entries(s.by_category)
+      .sort((a, b) => b[1] - a[1])
+      .map(([cat, n]) => `<div class="bar-row"><span>${esc(LABELS.category[cat])}</span>
+        <div class="bar"><span style="width:${(n / max) * 100}%"></span></div><strong>${n}</strong></div>`)
+      .join("");
+  }
+  loadStats();
+</script>
+{% endblock %}

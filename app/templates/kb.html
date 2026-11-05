@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Help articles{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Help articles</h1>
+    <p class="muted">Quick fixes for the most common problems.</p>
+  </div>
+</div>
+
+<div class="grid-2">
+  <div>
+    <div class="card">
+      <input id="search" type="search" placeholder="Search, e.g. password, Wi-Fi, install" autofocus>
+    </div>
+    <div id="results"><p class="empty">Loading…</p></div>
+    {% if user and not is_staff %}
+    <p class="small muted">Didn't find it? <a href="/tickets">Submit a ticket</a>.</p>
+    {% endif %}
+  </div>
+
+  {% if is_staff %}
+  <div class="card">
+    <h2 id="editor-title">New article</h2>
+    <form id="article-form" novalidate>
+      <input type="hidden" name="id">
+      <label for="a-title">Title</label>
+      <input id="a-title" name="title" required>
+      <div class="field-error" data-error-for="title"></div>
+      <label for="a-category">Category</label>
+      <select id="a-category" name="category">
+        <option value="account">Account</option>
+        <option value="wifi">Wi-Fi</option>
+        <option value="software">Software</option>
+        <option value="hardware">Hardware</option>
+        <option value="other">Other</option>
+      </select>
+      <label for="a-body">Steps</label>
+      <textarea id="a-body" name="body" required></textarea>
+      <div class="field-error" data-error-for="body"></div>
+      <div class="form-error" role="alert"></div>
+      <button class="btn btn-primary" type="submit">Save article</button>
+      <button class="btn btn-ghost" type="button" id="cancel-edit" hidden>Cancel</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const IS_STAFF = {{ is_staff | tojson }};
+  let articles = [];
+
+  async function search() {
+    const q = document.getElementById("search").value;
+    ({ articles } = await api("GET", `/api/articles?q=${encodeURIComponent(q)}`));
+    const box = document.getElementById("results");
+    box.innerHTML = articles.length
+      ? articles.map((a) => `<details class="article">
+          <summary>${esc(a.title)} <span class="badge">${esc(LABELS.category[a.category])}</span></summary>
+          <div class="body">${esc(a.body)}</div>
+          ${IS_STAFF ? `<button class="btn btn-ghost btn-small" data-edit="${a.id}" style="margin-top:10px">Edit</button>` : ""}
+        </details>`).join("")
+      : '<p class="empty">No articles match that search.</p>';
+  }
+
+  let timer;
+  document.getElementById("search").addEventListener("input", () => {
+    clearTimeout(timer);
+    timer = setTimeout(search, 250);
+  });
+
+  const form = document.getElementById("article-form");
+  if (form) {
+    const cancel = document.getElementById("cancel-edit");
+    const resetEditor = () => {
+      form.reset();
+      form.elements.id.value = "";
+      document.getElementById("editor-title").textContent = "New article";
+      cancel.hidden = true;
+    };
+    cancel.onclick = resetEditor;
+
+    document.getElementById("results").addEventListener("click", (event) => {
+      const id = Number(event.target.dataset.edit);
+      const a = articles.find((x) => x.id === id);
+      if (!a) return;
+      form.elements.id.value = a.id;
+      form.elements.title.value = a.title;
+      form.elements.category.value = a.category;
+      form.elements.body.value = a.body;
+      document.getElementById("editor-title").textContent = "Edit article";
+      cancel.hidden = false;
+      form.scrollIntoView({ behavior: "smooth" });
+    });
+
+    handleSubmit(form, async (data) => {
+      const { id, ...body } = data;
+      if (id) await api("PUT", `/api/articles/${id}`, body);
+      else await api("POST", "/api/articles", body);
+      resetEditor();
+      search();
+    });
+  }
+
+  search();
+</script>
+{% endblock %}
